@@ -52,6 +52,7 @@ local static_net
 if opt.finetune == '' then -- build network from scratch
   net = nn.Sequential()
 
+  --Encoder for starting image
   local encode_net = nn.Sequential()
   encode_net:add(nn.SpatialConvolution(3,128, 4,4, 2,2, 1,1))
   encode_net:add(nn.ReLU(true))
@@ -63,6 +64,21 @@ if opt.finetune == '' then -- build network from scratch
   encode_net:add(nn.SpatialBatchNormalization(1024,1e-3)):add(nn.ReLU(true))
   net:add(encode_net)
 
+  --Encoder for ending image
+  local encode_net2 = nn.Sequential()
+  encode_net2:add(nn.SpatialConvolution(3,128, 4,4, 2,2, 1,1))
+  encode_net2:add(nn.ReLU(true))
+  encode_net2:add(nn.SpatialConvolution(128,256, 4,4, 2,2, 1,1))
+  encode_net2:add(nn.SpatialBatchNormalization(256,1e-3)):add(nn.ReLU(true))
+  encode_net2:add(nn.SpatialConvolution(256,512, 4,4, 2,2, 1,1))
+  encode_net2:add(nn.SpatialBatchNormalization(512,1e-3)):add(nn.ReLU(true))
+  encode_net2:add(nn.SpatialConvolution(512,1024, 4,4, 2,2, 1,1))
+  encode_net2:add(nn.SpatialBatchNormalization(1024,1e-3)):add(nn.ReLU(true))
+  net:add(encode_net2)
+
+  -- TODO Combine two encoders as input to net_video
+
+  --[[
   static_net = nn.Sequential()
   static_net:add(nn.SpatialFullConvolution(1024, 512, 4,4, 2,2, 1,1))
   static_net:add(nn.SpatialBatchNormalization(512)):add(nn.ReLU(true))
@@ -72,6 +88,7 @@ if opt.finetune == '' then -- build network from scratch
   static_net:add(nn.SpatialBatchNormalization(128)):add(nn.ReLU(true))
   static_net:add(nn.SpatialFullConvolution(128, 3, 4,4, 2,2, 1,1))
   static_net:add(nn.Tanh())
+  --]]
 
   local net_video = nn.Sequential()
   net_video:add(nn.View(-1, 1024, 1, 4, 4))
@@ -84,21 +101,22 @@ if opt.finetune == '' then -- build network from scratch
   net_video:add(nn.VolumetricFullConvolution(256, 128, 4,4,4, 2,2,2, 1,1,1))
   net_video:add(nn.VolumetricBatchNormalization(128)):add(nn.ReLU(true))
 
+  --[[
   local mask_out = nn.VolumetricFullConvolution(128,1, 4,4,4, 2,2,2, 1,1,1)
   mask_net = nn.Sequential():add(mask_out):add(nn.Sigmoid())
   gen_net = nn.Sequential():add(nn.VolumetricFullConvolution(128,3, 4,4,4, 2,2,2, 1,1,1)):add(nn.Tanh())
   net_video:add(nn.ConcatTable():add(gen_net):add(mask_net))
+  --]]
 
   -- [1] is generated video, [2] is mask, and [3] is static
-  net:add(nn.ConcatTable():add(net_video):add(static_net)):add(nn.FlattenTable())
+  net:add(net_video):add(nn.FlattenTable())
 
   -- video .* mask (with repmat on mask)
-  motion_net = nn.Sequential():add(nn.ConcatTable():add(nn.SelectTable(1))
+  --[[motion_net = nn.Sequential():add(nn.ConcatTable():add(nn.SelectTable(1))
                                                    :add(nn.Sequential():add(nn.SelectTable(2))
                                                                        :add(nn.Squeeze())
                                                                        :add(nn.Replicate(3, 2)))) -- for color chan 
                               :add(nn.CMulTable())
-
   -- static .* (1-mask) (then repmatted)
   local sta_part = nn.Sequential():add(nn.ConcatTable():add(nn.Sequential():add(nn.SelectTable(3))
                                                                            :add(nn.Replicate(opt.frameSize, 3))) -- for time
@@ -108,8 +126,8 @@ if opt.finetune == '' then -- build network from scratch
                                                                            :add(nn.AddConstant(1))
                                                                            :add(nn.Replicate(3, 2)))) -- for color chan
                                   :add(nn.CMulTable())
-
-  net:add(nn.ConcatTable():add(motion_net):add(sta_part)):add(nn.CAddTable())
+  net:add(motion_net):add(nn.CAddTable())
+  --]]
 
   -- initialize the model
   local function weights_init(m)
