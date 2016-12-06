@@ -19,7 +19,7 @@ while True:
             imgURLs.append(gif['images']['downsized_small']['mp4'])
         except:
             continue
-	
+
     count = int(rjson['pagination']['count'])
     if(count < limit):
         break
