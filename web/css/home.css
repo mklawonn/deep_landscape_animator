@@ -3,6 +3,7 @@
   width: 1500px;
   flex-flow: row nowrap;
 }
+
 #main-container {
   width: 1200px;
   flex: 1 1 auto;
