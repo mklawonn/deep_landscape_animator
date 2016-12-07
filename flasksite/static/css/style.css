@@ -1,0 +1,224 @@
+body {
+  background-color: #131313;
+  color: #8E8E8E;
+}
+.container-fluid {
+  width: 1200px;
+  clear: both;
+}
+h2 {
+  font-size: 16px;
+}
+/* TOP NAV */
+.navbar.navbar-default {
+  background: #131313;
+  border-width: 0 0 2px 0;
+  border-style: solid;
+  border-color: #262626;
+  border-radius: 0;
+  height: 64px;
+  width: 100%;
+}
+.navbar-header {
+  float: right;
+  margin-right: 43px;
+  padding-top: 15px;
+  color: #9A9A9A;
+}
+.logo {
+  float: left;
+  width: 64px;
+  height: 62px;
+  background-image: url('../img/logo_q.png');
+  background-position: center;
+  background-size: auto 32px;
+  background-repeat: no-repeat;
+  color: #9A9A9A;
+  margin: 0;
+  border-right: 2px solid #262626;
+}
+/* FORM CONTROLS */
+.ui-tabs-panel,
+table,
+output {
+  color: #8E8E8E;
+}
+table {
+  border-collapse: collapse;
+}
+select,
+input,
+button,
+textarea {
+  background-color: #262626;
+  border: 1px solid #313131;
+  border-radius: 0;
+}
+select {
+  border-width: 0 1px;
+  border-radius: 2px;
+}
+label {
+  font-weight: normal;
+  margin-bottom: initial;
+}
+input[type="checkbox"],
+input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+}
+input[type="checkbox"] + label::before,
+input[type="radio"] + label::before {
+  position: relative;
+  top: 1px;
+  display: inline-block;
+  font-family: "FontAwesome";
+  height: 12px;
+  width: 12px;
+  margin-right: 8px;
+  font-size: 1.1em;
+  line-height: inherit;
+}
+input[type="checkbox"] + label::before {
+  content: '\f096';
+}
+input[type="checkbox"]:checked + label::before {
+  content: '\f046';
+}
+input[type="radio"] + label::before {
+  content: '\f1db';
+}
+input[type="radio"]:checked + label::before {
+  content: '\f111';
+}
+input[type="checkbox"]:disabled + label::before,
+input[type="radio"]:disabled + label::before {
+  color: #313131;
+}
+input:placeholder-shown {
+  color: #454545;
+}
+::-webkit-input-placeholder {
+  color: #454545;
+}
+:-moz-placeholder {
+  /* Firefox 18- */
+  color: #454545;
+}
+::-moz-placeholder {
+  /* Firefox 19+ */
+  color: #454545;
+}
+:-ms-input-placeholder {
+  color: #454545;
+}
+/* SELECTOR BAR/DROPDOWN MENU */
+.navbar-menu,
+#toggle-sidebar {
+  display: inline-block;
+}
+.navbar-menu a,
+#toggle-sidebar a {
+  display: inline-block;
+  height: 62px;
+  line-height: 62px;
+  color: #9A9A9A;
+  font-size: 14px;
+  padding: 0 14px;
+}
+#dropdownMain a {
+  font-size: 18px;
+  padding: 0 20px;
+}
+.navbar-menu a:hover,
+.navbar-menu a:focus,
+.navbar-menu.open {
+  text-decoration: none;
+  background-color: #1D1D1D;
+}
+.navbar-default .navbar-nav > .open > a,
+.navbar-default .navbar-nav > .open > a:focus,
+.navbar-default .navbar-nav > .open > a:hover,
+.dropdown-menu > li > a {
+  color: #9A9A9A;
+  text-decoration: none;
+  background-color: inherit;
+}
+.dropdown-menu {
+  border-radius: 0;
+  background-color: #313131;
+  color: #F2F2F2;
+  font-size: 13px;
+  padding: 8px 10px;
+  text-transform: uppercase;
+}
+.dropdown-menu li {
+  padding: 4px 12px;
+}
+.dropdown-menu li:hover {
+  background-color: #9A9A9A;
+  color: #262626;
+}
+.dropdown-menu li.divider,
+.dropdown-menu li.divider:hover {
+  background-color: #8E8E8E;
+}
+.dropdown-menu li.divider {
+  padding: 0;
+}
+.dropdown-menu li > label {
+  width: 100%;
+}
+#toggle-sidebar {
+  padding-right: 20px;
+}
+.smalltext {
+  font-size: 0.8em;
+  display: block;
+}
+/* Dialogs */
+.ui-dialog {
+  padding: 0;
+  background-color: #1D1D1D;
+  color: #9A9A9A;
+  border-radius: 0;
+  border-color: #262626;
+}
+.ui-dialog .ui-dialog-titlebar {
+  background-color: #313131;
+  color: #F2F2F2;
+  border: none;
+  border-radius: 0;
+}
+.ui-dialog .ui-dialog-titlebar .ui-dialog-titlebar-close {
+  top: 0;
+  right: 0;
+  width: 36px;
+  height: 100%;
+  margin: 0;
+  background-color: #131313;
+  color: inherit;
+}
+.ui-dialog .ui-dialog-content {
+  display: flex;
+  flex-flow: row wrap;
+}
+.ui-dialog .ui-dialog-content > * {
+  flex: 1 0 auto;
+  line-height: 32px;
+  font-size: 16px;
+  margin: 2%;
+}
+.ui-dialog .ui-dialog-content * {
+  color: #9A9A9A;
+}
+.ui-dialog .ui-dialog-content .divider {
+  flex: 4 0 auto;
+  height: 1px;
+  width: 90%;
+  background-color: #313131;
+  margin: 0.6em auto;
+}
+.ui-dialog .ui-dialog-titlebar .ui-dialog-titlebar-close::after {
+  content: 'X';
+}
