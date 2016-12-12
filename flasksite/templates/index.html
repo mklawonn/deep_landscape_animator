@@ -26,17 +26,18 @@
 				</div>
 				<br>
 				<div>
-					<img src="static/img/giphy.gif"  alt="Natural Time-Lapse" style="width:600px;height:338px;">
+					<!--<img src="static/img/giphy.gif"  alt="Natural Time-Lapse" style="width:600px;height:338px;">-->
+					<img src={{gif}}  alt="Natural Time-Lapse" style="width:600px;height:338px;">
 				</div>
 				<br>
 				<div class="inner cover">
-					<form>
+					<form action="/animate" method="post">
 						<label for="ImageURL1" style="color:#bbff99">Paste Starting Image URL</label>
 						<input type="text" id="ImageURL1" placeholder="start.jpeg">
 						<label for="ImageURL2" style="color:#99bbff">Paste Ending Image URL</label>
 						<input type="text" id="ImageURL2" placeholder="end.jpeg">
 						<br>
-						<button class="btn btn-lg btn-secondary" onclick="" style="background-color:#cccccc">Animate!</button>
+						<input type="submit" class="btn btn-lg btn-secondary" value="Animate!" style="background-color:#cccccc">
 					</form>
 				</div>	
 			</div>
