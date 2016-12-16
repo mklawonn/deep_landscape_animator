@@ -28,9 +28,13 @@ opt = {
   display_port = 8001,  -- port to push graphs
   display_id = 1,       -- window ID when pushing graphs
   mean = {0,0,0},
-  data_root = '/data/vision/torralba/crossmodal/flickr_videos/',
-  data_list = '/data/vision/torralba/crossmodal/flickr_videos/scene_extract/lists-full/_b_beach.txt.train',
+  data_root = './data/',
+  data_list = '/data/list.train',
 }
+
+-- one-line argument parser. parses enviroment variables to override the defaults
+for k,v in pairs(opt) do opt[k] = tonumber(os.getenv(k)) or os.getenv(k) or opt[k] end
+print(opt)
 
 torch.manualSeed(0)
 torch.setnumthreads(1)
@@ -42,81 +46,61 @@ if opt.gpu > 0 then
   cutorch.setDevice(opt.gpu)
 end
 
--- TODO Load data here
+-- create data loader
+local DataLoader = paths.dofile('data/data.lua')
+local data = DataLoader.new(opt.nThreads, opt.dataset, opt)
+print("Dataset: " .. opt.dataset, " Size: ", data:size())
 
 -- define the model
 local net
+local netD
 local mask_net
 local motion_net 
 local static_net
+local penalty_net 
 if opt.finetune == '' then -- build network from scratch
   net = nn.Sequential()
 
-  --Encoder for starting image
-  local encode_net = nn.Sequential()
-  encode_net:add(nn.SpatialConvolution(3,128, 4,4, 2,2, 1,1))
-  encode_net:add(nn.ReLU(true))
-  encode_net:add(nn.SpatialConvolution(128,256, 4,4, 2,2, 1,1))
-  encode_net:add(nn.SpatialBatchNormalization(256,1e-3)):add(nn.ReLU(true))
-  encode_net:add(nn.SpatialConvolution(256,512, 4,4, 2,2, 1,1))
-  encode_net:add(nn.SpatialBatchNormalization(512,1e-3)):add(nn.ReLU(true))
-  encode_net:add(nn.SpatialConvolution(512,1024, 4,4, 2,2, 1,1))
-  encode_net:add(nn.SpatialBatchNormalization(1024,1e-3)):add(nn.ReLU(true))
-  net:add(encode_net)
-
-  --Encoder for ending image
-  local encode_net2 = nn.Sequential()
-  encode_net2:add(nn.SpatialConvolution(3,128, 4,4, 2,2, 1,1))
-  encode_net2:add(nn.ReLU(true))
-  encode_net2:add(nn.SpatialConvolution(128,256, 4,4, 2,2, 1,1))
-  encode_net2:add(nn.SpatialBatchNormalization(256,1e-3)):add(nn.ReLU(true))
-  encode_net2:add(nn.SpatialConvolution(256,512, 4,4, 2,2, 1,1))
-  encode_net2:add(nn.SpatialBatchNormalization(512,1e-3)):add(nn.ReLU(true))
-  encode_net2:add(nn.SpatialConvolution(512,1024, 4,4, 2,2, 1,1))
-  encode_net2:add(nn.SpatialBatchNormalization(1024,1e-3)):add(nn.ReLU(true))
-  net:add(encode_net2)
-
-  -- TODO Combine two encoders as input to net_video
-
-  --[[
   static_net = nn.Sequential()
-  static_net:add(nn.SpatialFullConvolution(1024, 512, 4,4, 2,2, 1,1))
+  static_net:add(nn.View(-1, 100, 1, 1))
+  static_net:add(nn.SpatialFullConvolution(100, 512, 4,4))
   static_net:add(nn.SpatialBatchNormalization(512)):add(nn.ReLU(true))
   static_net:add(nn.SpatialFullConvolution(512, 256, 4,4, 2,2, 1,1))
   static_net:add(nn.SpatialBatchNormalization(256)):add(nn.ReLU(true))
   static_net:add(nn.SpatialFullConvolution(256, 128, 4,4, 2,2, 1,1))
   static_net:add(nn.SpatialBatchNormalization(128)):add(nn.ReLU(true))
-  static_net:add(nn.SpatialFullConvolution(128, 3, 4,4, 2,2, 1,1))
+  static_net:add(nn.SpatialFullConvolution(128, 64, 4,4, 2,2, 1,1))
+  static_net:add(nn.SpatialBatchNormalization(64)):add(nn.ReLU(true))
+  static_net:add(nn.SpatialFullConvolution(64, 3, 4,4, 2,2, 1,1))
   static_net:add(nn.Tanh())
-  --]]
 
   local net_video = nn.Sequential()
-  net_video:add(nn.View(-1, 1024, 1, 4, 4))
-  net_video:add(nn.VolumetricFullConvolution(1024, 1024, 2,1,1))
-  net_video:add(nn.VolumetricBatchNormalization(1024)):add(nn.ReLU(true))
-  net_video:add(nn.VolumetricFullConvolution(1024, 512, 4,4,4, 2,2,2, 1,1,1))
+  net_video:add(nn.View(-1, 100, 1, 1, 1))
+  net_video:add(nn.VolumetricFullConvolution(100, 512, 2,4,4))
   net_video:add(nn.VolumetricBatchNormalization(512)):add(nn.ReLU(true))
   net_video:add(nn.VolumetricFullConvolution(512, 256, 4,4,4, 2,2,2, 1,1,1))
   net_video:add(nn.VolumetricBatchNormalization(256)):add(nn.ReLU(true))
   net_video:add(nn.VolumetricFullConvolution(256, 128, 4,4,4, 2,2,2, 1,1,1))
   net_video:add(nn.VolumetricBatchNormalization(128)):add(nn.ReLU(true))
+  net_video:add(nn.VolumetricFullConvolution(128, 64, 4,4,4, 2,2,2, 1,1,1))
+  net_video:add(nn.VolumetricBatchNormalization(64)):add(nn.ReLU(true))
 
-  --[[
-  local mask_out = nn.VolumetricFullConvolution(128,1, 4,4,4, 2,2,2, 1,1,1)
-  mask_net = nn.Sequential():add(mask_out):add(nn.Sigmoid())
-  gen_net = nn.Sequential():add(nn.VolumetricFullConvolution(128,3, 4,4,4, 2,2,2, 1,1,1)):add(nn.Tanh())
+  local mask_out = nn.VolumetricFullConvolution(64,1, 4,4,4, 2,2,2, 1,1,1)
+  penalty_net = nn.L1Penalty(opt.lambda, true)
+  mask_net = nn.Sequential():add(mask_out):add(nn.Sigmoid()):add(penalty_net) 
+  gen_net = nn.Sequential():add(nn.VolumetricFullConvolution(64,3, 4,4,4, 2,2,2, 1,1,1)):add(nn.Tanh())
   net_video:add(nn.ConcatTable():add(gen_net):add(mask_net))
-  --]]
 
   -- [1] is generated video, [2] is mask, and [3] is static
-  net:add(net_video):add(nn.FlattenTable())
+  net:add(nn.ConcatTable():add(net_video):add(static_net)):add(nn.FlattenTable())
 
   -- video .* mask (with repmat on mask)
-  --[[motion_net = nn.Sequential():add(nn.ConcatTable():add(nn.SelectTable(1))
+  motion_net = nn.Sequential():add(nn.ConcatTable():add(nn.SelectTable(1))
                                                    :add(nn.Sequential():add(nn.SelectTable(2))
                                                                        :add(nn.Squeeze())
                                                                        :add(nn.Replicate(3, 2)))) -- for color chan 
                               :add(nn.CMulTable())
+
   -- static .* (1-mask) (then repmatted)
   local sta_part = nn.Sequential():add(nn.ConcatTable():add(nn.Sequential():add(nn.SelectTable(3))
                                                                            :add(nn.Replicate(opt.frameSize, 3))) -- for time
@@ -126,8 +110,21 @@ if opt.finetune == '' then -- build network from scratch
                                                                            :add(nn.AddConstant(1))
                                                                            :add(nn.Replicate(3, 2)))) -- for color chan
                                   :add(nn.CMulTable())
-  net:add(motion_net):add(nn.CAddTable())
-  --]]
+
+  net:add(nn.ConcatTable():add(motion_net):add(sta_part)):add(nn.CAddTable())
+
+  netD = nn.Sequential()
+
+  netD:add(nn.VolumetricConvolution(3,64, 4,4,4, 2,2,2, 1,1,1))
+  netD:add(nn.LeakyReLU(0.2, true))
+  netD:add(nn.VolumetricConvolution(64,128, 4,4,4, 2,2,2, 1,1,1))
+  netD:add(nn.VolumetricBatchNormalization(128,1e-3)):add(nn.LeakyReLU(0.2, true))
+  netD:add(nn.VolumetricConvolution(128,256, 4,4,4, 2,2,2, 1,1,1))
+  netD:add(nn.VolumetricBatchNormalization(256,1e-3)):add(nn.LeakyReLU(0.2, true))
+  netD:add(nn.VolumetricConvolution(256,512, 4,4,4, 2,2,2, 1,1,1))
+  netD:add(nn.VolumetricBatchNormalization(512,1e-3)):add(nn.LeakyReLU(0.2, true))
+  netD:add(nn.VolumetricConvolution(512,2, 2,4,4, 1,1,1, 0,0,0))
+  netD:add(nn.View(2):setNumInputDims(4)) 
 
   -- initialize the model
   local function weights_init(m)
@@ -141,6 +138,7 @@ if opt.finetune == '' then -- build network from scratch
     end
   end
   net:apply(weights_init) -- loop over all layers, applying weights_init
+  netD:apply(weights_init)
 
   mask_out.weight:normal(0, 0.01)
   mask_out.bias:fill(0)
@@ -150,6 +148,51 @@ else -- load in existing network
   net = torch.load(opt.finetune)
 end
 
+print('Generator:')
+print(net)
+print('Discriminator:')
+print(netD)
+
+-- define the loss
+local criterion = nn.CrossEntropyCriterion()
+local real_label = 1
+local fake_label = 2
+
+-- create the data placeholders
+local noise = torch.Tensor(opt.batchSize, 100)
+local target = torch.Tensor(opt.batchSize, 3, opt.frameSize, opt.fineSize, opt.fineSize)
+local label = torch.Tensor(opt.batchSize)
+local err, errD
+
+-- timers to roughly profile performance
+local tm = torch.Timer()
+local data_tm = torch.Timer()
+
+-- ship everything to GPU if needed
+if opt.gpu > 0 then
+  noise = noise:cuda()
+  target = target:cuda()
+  label = label:cuda()
+  net:cuda()
+  netD:cuda()
+  criterion:cuda()
+end
+
+-- conver to cudnn if needed
+-- if this errors on you, you can disable, but will be slightly slower
+if opt.gpu > 0 and opt.cudnn > 0 then
+  require 'cudnn'
+  net = cudnn.convert(net, cudnn)
+  netD = cudnn.convert(netD, cudnn)
+end
+
+-- get a vector of parameters
+local parameters, gradParameters = net:getParameters()
+local parametersD, gradParametersD = netD:getParameters()
+
+-- show graphics
+disp = require 'display'
+disp.url = 'http://localhost:' .. opt.display_port .. '/events'
 
 -- optimization closure
 -- the optimizer will call this function to get the gradients
@@ -157,15 +200,32 @@ local data_im,data_label
 local fDx = function(x)
   gradParametersD:zero()
 
-  -- TODO fetch data
+  -- fetch data
+  data_tm:reset(); data_tm:resume()
+  data_im = data:getBatch()
+  data_tm:stop()
 
   -- ship to GPU
-  input:copy(data_im:select(3,1))
+  noise:normal()
   target:copy(data_im)
-  video:copy(data_im)
   label:fill(real_label)
 
-  -- TODO Determine gradient
+  -- forward/backwards real examples
+  local output = netD:forward(target)
+  errD = criterion:forward(output, label)
+  local df_do = criterion:backward(output, label)
+  netD:backward(target, df_do)
+
+  -- generate fake examples
+  local fake = net:forward(noise)
+  target:copy(fake)
+  label:fill(fake_label)
+
+  -- forward/backwards fake examples
+  local output = netD:forward(target)
+  errD = errD + criterion:forward(output, label)
+  local df_do = criterion:backward(output, label)
+  netD:backward(target, df_do)
 
   errD = errD / 2
 
@@ -175,9 +235,15 @@ end
 local fx = function(x)
   gradParameters:zero()
 
-  -- TODO do backwards propagation  
+  label:fill(real_label)
+  local output = netD.output
+  err = criterion:forward(output, label)
+  local df_do = criterion:backward(output, label)
+  local df_dg = netD:updateGradInput(target, df_do)
 
-  return err + errReg, gradParameters
+  net:backward(noise, df_dg)
+
+  return err, gradParameters
 end
 
 local counter = 0
@@ -207,8 +273,8 @@ for epoch = 1,opt.niter do -- for each epoch
     optim.adam(fx, parameters, optimState)
 
     if counter % 10 == 0 then
-      table.insert(history, {counter, err, errD, errReg})
-      disp.plot(history, {win=opt.display_id+1, title=opt.name, labels = {"iteration", "err", "errD", "errR"}})
+      table.insert(history, {counter, err, errD})
+      disp.plot(history, {win=opt.display_id+1, title=opt.name, labels = {"iteration", "err", "errD"}})
     end
     
     if counter % 100 == 0 then
@@ -235,11 +301,11 @@ for epoch = 1,opt.niter do -- for each epoch
     counter = counter + 1
     
     print(('%s: Epoch: [%d][%8d / %8d]\t Time: %.3f  DataTime: %.3f  '
-              .. '  Err: %.4f  ErrD: %.4f  ErrR: %.4f'):format(
+              .. '  Err: %.4f  ErrD: %.4f  L2: %.4f'):format(
             opt.name, epoch, ((i-1) / opt.batchSize),
             math.floor(math.min(data:size(), opt.ntrain) / opt.batchSize),
             tm:time().real, data_tm:time().real,
-            err and err or -1, errD and errD or -1, errReg and errReg or -1))
+            err and err or -1, errD and errD or -1, penalty_net.loss))
 
     -- save checkpoint
     -- :clearState() compacts the model so it takes less space on disk
@@ -248,6 +314,7 @@ for epoch = 1,opt.niter do -- for each epoch
       paths.mkdir('checkpoints')
       paths.mkdir('checkpoints/' .. opt.name)
       torch.save('checkpoints/' .. opt.name .. '/iter' .. counter .. '_net.t7', net:clearState())
+      torch.save('checkpoints/' .. opt.name .. '/iter' .. counter .. '_netD.t7', netD:clearState())
       torch.save('checkpoints/' .. opt.name .. '/iter' .. counter .. '_history.t7', history)
     end
   end
@@ -264,4 +331,3 @@ for epoch = 1,opt.niter do -- for each epoch
     }
   end
 end
-

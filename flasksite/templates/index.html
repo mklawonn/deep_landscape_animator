@@ -31,15 +31,15 @@
 				</div>
 				<br>
 				<div class="inner cover">
-					<form action="/animate" method="post">
+					<form action="{{ url_for('animate') }}" method="post">
 						<label for="ImageURL1" style="color:#bbff99">Paste Starting Image URL</label>
-						<input type="text" id="ImageURL1" placeholder="start.jpeg">
+						<input type="text" name="ImageURL1" placeholder="start.jpeg">
 						<label for="ImageURL2" style="color:#99bbff">Paste Ending Image URL</label>
-						<input type="text" id="ImageURL2" placeholder="end.jpeg">
+						<input type="text" name="ImageURL2" placeholder="end.jpeg">
 						<br>
 						<input type="submit" class="btn btn-lg btn-secondary" value="Animate!" style="background-color:#cccccc">
 					</form>
-				</div>	
+				</div>
 			</div>
 		</div>
 	</div>
